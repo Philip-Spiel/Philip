@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PHILIP – Tischwurf-Spiel</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Arial,Helvetica,sans-serif;background:#111;color:#fff;overflow:hidden;user-select:none}
+#app{position:relative;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 28%,#30343a 0,#181a1e 45%,#0d0e10 100%)}
+#scene{position:absolute;inset:0;perspective:1100px;overflow:hidden;cursor:grab}
+#scene.dragging{cursor:grabbing}
+.world{position:absolute;left:50%;top:52%;width:900px;height:900px;transform-style:preserve-3d;transform:translate(-50%,-50%) rotateX(62deg) translateZ(-80px)}
+.table{position:absolute;left:200px;top:200px;width:500px;height:500px;border-radius:8px;background-color:#e9e9e6;background-image:
+  radial-gradient(ellipse at 18% 22%,rgba(255,255,255,.78) 0,rgba(255,255,255,0) 32%),
+  radial-gradient(ellipse at 78% 68%,rgba(120,120,120,.16) 0,rgba(120,120,120,0) 36%),
+  repeating-linear-gradient(118deg,rgba(80,80,80,.10) 0 2px,transparent 2px 19px,rgba(255,255,255,.28) 19px 23px,transparent 23px 42px),
+  repeating-linear-gradient(67deg,transparent 0 34px,rgba(90,90,90,.08) 34px 36px,transparent 36px 76px);
+  border:10px solid #111;box-shadow:0 30px 55px rgba(0,0,0,.5),inset 0 0 0 2px rgba(255,255,255,.65),inset 0 0 28px rgba(0,0,0,.18);transform:translateZ(-18px);transform-style:preserve-3d;overflow:hidden}
+.table:before{content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 0 0 8px rgba(0,0,0,.18),inset 0 0 22px rgba(0,0,0,.32);border-radius:4px;pointer-events:none}
+.table:after{content:"";position:absolute;inset:12px;border:2px solid rgba(255,255,255,.22);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.45),0 0 10px rgba(0,0,0,.22)}
+.shadow{position:absolute;width:180px;height:70px;left:50%;top:50%;margin:-35px 0 0 -90px;background:rgba(0,0,0,.42);filter:blur(13px);border-radius:50%;transform:translateZ(-9px);opacity:.6}
+.pack{position:absolute;left:50%;top:50%;width:140px;height:190px;transform-style:preserve-3d;transform-origin:50% 50%;will-change:transform;z-index:20}
+.face{position:absolute;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(20,10,5,.55);backface-visibility:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.front,.back{width:140px;height:190px;left:0;top:0}.front{transform:translateZ(27.5px)}.back{transform:rotateY(180deg) translateZ(27.5px)}
+.right,.left{width:55px;height:190px;left:42.5px;top:0}.right{transform:rotateY(90deg) translateZ(70px)}.left{transform:rotateY(-90deg) translateZ(70px)}
+.top,.bottom{width:140px;height:55px;left:0;top:67.5px}.top{transform:rotateX(90deg) translateZ(95px)}.bottom{transform:rotateX(-90deg) translateZ(95px)}
+.pack-face{background:linear-gradient(145deg,#9b1719,#5f080b);color:#f7e7bf}.pack.player-b .pack-face{background:linear-gradient(145deg,#1767b1,#083b73)}
+.pack-face:before{content:"";position:absolute;inset:7px;border:2px solid rgba(248,231,191,.85);pointer-events:none}
+.label{position:relative;z-index:2;text-align:center;font-weight:900;letter-spacing:2px;font-size:24px;text-shadow:0 2px 2px #2a0000}
+.small{font-size:10px;letter-spacing:1.5px;margin-top:6px;opacity:.9}
+.side-design{font-size:13px;font-weight:800;letter-spacing:1px;transform:rotate(-90deg);white-space:nowrap}
+#ui{position:absolute;z-index:1000;inset:0;pointer-events:none}
+.scoreboard{position:absolute;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;gap:10px;pointer-events:none;background:rgba(10,10,12,.84);padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.35);backdrop-filter:blur(8px)}
+.player{min-width:150px;text-align:center;padding:6px 16px;border-radius:9px;color:#aaa;font-weight:700}.player.active{color:#fff;background:rgba(255,255,255,.11)}.score{display:block;font-size:30px;line-height:32px;color:#fff}.turn{font-size:13px;margin-top:4px;opacity:.9}.vs{display:flex;align-items:center;font-weight:900;color:#777}
+.status{display:none;position:absolute;top:110px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:20px;background:rgba(0,0,0,.5);font-size:14px;white-space:nowrap;pointer-events:none}
+.controls{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;pointer-events:auto}
+button{appearance:none;border:0;border-radius:10px;width:110px;height:56px;padding:0;font-size:16px;line-height:1.15;font-weight:800;cursor:pointer;color:#111;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+button:hover{transform:translateY(-1px)}button:active{transform:translateY(1px)}button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.hint{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);font-size:12px;color:#aaa;pointer-events:none;white-space:nowrap}
+.overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1100;pointer-events:none}.overlay.show{display:flex}.result{padding:25px 34px;border-radius:18px;background:rgba(16,16,18,.94);border:1px solid rgba(255,255,255,.18);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}.result h1{margin:0 0 8px;font-size:36px}.result p{margin:0;color:#ccc}
+@media(max-width:700px){.world{transform:translate(-50%,-50%) rotateX(62deg) scale(.72) translateZ(-80px)}.scoreboard{top:10px}.player{min-width:110px;padding:5px 9px}.hint{display:none}.controls{bottom:15px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene" aria-label="3D-Spielszene">
+    <div class="world" id="world">
+      <div class="table"></div>
+      <div class="shadow" id="shadow"></div>
+      <div class="pack" id="pack">
+        <div class="face front pack-face"><div class="label">PHILIP<div class="small">SPECIAL EDITION</div></div></div>
+        <div class="face back pack-face"><div class="label">PHILIP<div class="small">SPECIAL EDITION</div></div></div>
+        <div class="face right pack-face"><div class="side-design">PHILIP</div></div>
+        <div class="face left pack-face"><div class="side-design">PHILIP</div></div>
+        <div class="face top pack-face"><div class="label" style="font-size:16px">PHILIP</div></div>
+        <div class="face bottom pack-face"><div class="label" style="font-size:16px">PHILIP</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ui">
+    <div class="scoreboard" aria-live="polite">
+      <div class="player active" id="playerABox">PLAYER A<span class="score" id="scoreA">0</span><span class="turn" id="turnA">AM ZUG</span></div>
+      <div class="vs">:</div>
+      <div class="player" id="playerBBox">PLAYER B<span class="score" id="scoreB">0</span><span class="turn" id="turnB">–</span></div>
+    </div>
+    <div class="status" id="status">PLAYER A ist am Zug</div>
+    <div class="controls">
+      <button id="resetBtn" type="button">Neu</button>
+      <button id="throwBtn" type="button">Werfen</button>
+      <button id="autoBtn" type="button"><span>Auto</span><br><span>Off</span></button>
+    </div>
+    <div class="overlay" id="overlay"><div class="result"><h1 id="resultTitle"></h1><p id="resultText"></p></div></div>
+  </div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const pack = document.getElementById('pack');
+  const shadow = document.getElementById('shadow');
+  const scene = document.getElementById('scene');
+  const throwBtn = document.getElementById('throwBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const autoBtn = document.getElementById('autoBtn');
+  const scoreA = document.getElementById('scoreA');
+  const scoreB = document.getElementById('scoreB');
+  const playerABox = document.getElementById('playerABox');
+  const playerBBox = document.getElementById('playerBBox');
+  const turnA = document.getElementById('turnA');
+  const turnB = document.getElementById('turnB');
+  const status = document.getElementById('status');
+  const overlay = document.getElementById('overlay');
+  const resultTitle = document.getElementById('resultTitle');
+  const resultText = document.getElementById('resultText');
+
+  const PACK_W = 140, PACK_H = 190, PACK_D = 55;
+  const TABLE_W = 500, TABLE_D = 500, EDGE = 18, CLEARANCE = 3;
+  const REST_FLAT = PACK_D/2 + CLEARANCE;
+  const REST_UPRIGHT = PACK_H/2 + CLEARANCE;
+  const REST_SIDE = PACK_W/2 + CLEARANCE;
+
+  // Feste Initiallage: Jeder Wurf beginnt exakt hier.
+  const INITIAL = { x: 0, y: 120, z: REST_FLAT, rx: 0, ry: 0, rz: 0 };
+
+  let state = { a:0, b:0, current:'A', throwing:false, finished:false, firstToTen:null, pendingDraw:false };
+  const autoModes = ['Off','A','B','A/B'];
+  let autoModeIndex = 0;
+  let autoTimer = null;
+  let autoLastPlayer = null;
+  let anim = null;
+  let sceneRotX = 0, sceneRotY = 0, drag = null;
+
+  function updatePack(x,y,z,rx,ry,rz){
+    pack.style.transform = `translate(-50%,-50%) translate3d(${x}px,${y}px,${z}px) rotateZ(${rz}deg) rotateY(${ry}deg) rotateX(${rx}deg)`;
+  }
+  function updateShadow(x,y,scale=1,opacity=.55){
+    shadow.style.left = `calc(50% + ${x}px)`; shadow.style.top = `calc(50% + ${y}px)`;
+    shadow.style.transform = `translateZ(-9px) scale(${scale})`; shadow.style.opacity = opacity;
+  }
+  function renderScore(){
+    pack.classList.toggle('player-b', state.current==='B');
+    scoreA.textContent = state.a; scoreB.textContent = state.b;
+    playerABox.classList.toggle('active', state.current==='A' && !state.finished);
+    playerBBox.classList.toggle('active', state.current==='B' && !state.finished);
+    turnA.textContent = state.current==='A' && !state.finished ? 'AM ZUG' : '–';
+    turnB.textContent = state.current==='B' && !state.finished ? 'AM ZUG' : '–';
+    if(!state.finished) status.textContent = `PLAYER ${state.current} ist am Zug`;
+  }
+  function setInitial(){
+    updatePack(INITIAL.x,INITIAL.y,INITIAL.z,INITIAL.rx,INITIAL.ry,INITIAL.rz);
+    updateShadow(INITIAL.x,INITIAL.y,.9,.38);
+  }
+  function scheduleAutoThrow(){
+    if(autoTimer) { clearTimeout(autoTimer); autoTimer=null; }
+    const playerChanged = autoLastPlayer !== null && autoLastPlayer !== state.current;
+    // Den letzten Spieler immer aktualisieren – auch wenn der aktuelle Modus
+    // für diesen Spieler gerade nicht gilt. So wird ein späterer Wechsel
+    // zurück zum automatisierten Spieler ebenfalls mit 1,0 s berücksichtigt.
+    autoLastPlayer = state.current;
+    if(state.finished || state.throwing || throwBtn.disabled) return;
+    const applies = autoModeIndex===1 ? state.current==='A' : autoModeIndex===2 ? state.current==='B' : autoModeIndex===3;
+    if(!applies) return;
+    const delay = playerChanged ? 1000 : 300;
+    autoTimer=setTimeout(()=>{
+      autoTimer=null;
+      if(!state.finished && !state.throwing && !throwBtn.disabled) throwPack();
+    },delay);
+  }
+  function resetGame(){
+    if(autoTimer) { clearTimeout(autoTimer); autoTimer=null; }
+    if(anim) cancelAnimationFrame(anim);
+    anim=null; state={a:0,b:0,current:'A',throwing:false,finished:false,firstToTen:null,pendingDraw:false};
+    autoLastPlayer=null;
+    overlay.classList.remove('show'); throwBtn.disabled=false; resetBtn.disabled=false;
+    setInitial(); renderScore();
+    scheduleAutoThrow();
+  }
+  function lerp(a,b,t){return a+(b-a)*t}
+  function easeOutCubic(t){return 1-Math.pow(1-t,3)}
+  function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
+  function minPackZOffset(rx,ry,rz){
+    const hx=PACK_W/2,hy=PACK_H/2,hz=PACK_D/2;
+    const ax=rx*Math.PI/180, ay=ry*Math.PI/180;
+    const sx=Math.sin(ax),cx=Math.cos(ax),sy=Math.sin(ay),cy=Math.cos(ay);
+    let min=Infinity;
+    for(const x of [-hx,hx]) for(const y of [-hy,hy]) for(const z of [-hz,hz]){
+      const y1=y*cx-z*sx, z1=y*sx+z*cx;
+      const z2=-x*sy+z1*cy;
+      min=Math.min(min,z2);
+    }
+    return min;
+  }
+  function zNeeded(rx,ry,rz){return Math.max(0,CLEARANCE-minPackZOffset(rx,ry,rz))}
+  function safeBounds(landing){
+    const radius=Math.hypot(landing.halfX,landing.halfY)+EDGE;
+    return {minX:-TABLE_W/2+radius,maxX:TABLE_W/2-radius,minY:-TABLE_D/2+radius,maxY:TABLE_D/2-radius};
+  }
+  function makeLanding(){
+    const r=Math.random();
+    // 0=flach, 1=seitlich, 2=aufrecht
+    if(r<.34) return {type:'flat',rx:Math.random()<.5?0:180,ry:0,restZ:REST_FLAT,halfX:PACK_W/2,halfY:PACK_H/2};
+    if(r<.67) return {type:'side',rx:0,ry:Math.random()<.5?90:-90,restZ:REST_SIDE,halfX:PACK_D/2,halfY:PACK_H/2};
+    return {type:'upright',rx:Math.random()<.5?90:-90,ry:0,restZ:REST_UPRIGHT,halfX:PACK_W/2,halfY:PACK_D/2};
+  }
+  function finishGame(winner,draw){
+    state.finished=true; throwBtn.disabled=true;
+    overlay.classList.add('show');
+    if(draw){resultTitle.textContent='Unentschieden!';resultText.textContent='Beide Spieler haben 10 Punkte erreicht.';status.textContent='Partie beendet · Unentschieden';}
+    else {resultTitle.textContent=`PLAYER ${winner} gewinnt!`;resultText.textContent=`PLAYER ${winner} hat die Partie gewonnen.`;status.textContent=`Partie beendet · PLAYER ${winner} gewinnt`}
+  }
+  function applyResult(landing){
+    const p=state.current;
+    const before=p==='A'?state.a:state.b;
+    let repeat=false;
+    if(landing.type==='upright'){
+      if(before===9){ if(p==='A') state.a=1; else state.b=1; repeat=true; }
+      else { if(p==='A') state.a+=2; else state.b+=2; repeat=true; }
+    } else if(landing.type==='side'){
+      if(p==='A') state.a+=1; else state.b+=1; repeat=true;
+    } else { repeat=false; }
+
+    const now=p==='A'?state.a:state.b;
+    // 10:10 ist immer ein Unentschieden und hat Vorrang vor der B-Siegprüfung.
+    if(state.a>=10 && state.b>=10){ renderScore(); finishGame(null,true); return; }
+
+    // PLAYER B erreicht 10 zuerst: sofortiger Sieg.
+    if(p==='B' && now>=10){ renderScore(); finishGame('B',false); return; }
+
+    // PLAYER A erreicht 10 zuerst: B bekommt eine Ausgleichschance.
+    if(p==='A' && now>=10 && state.firstToTen===null){
+      state.firstToTen='A'; state.current='B'; state.pendingDraw=true;
+      status.textContent='PLAYER B hat die Ausgleichschance'; renderScore(); return;
+    }
+
+    // B erreicht während der Ausgleichschance 10: Unentschieden.
+    if(state.firstToTen==='A' && p==='B' && now>=10){ renderScore(); finishGame(null,true); return; }
+
+    if(landing.type==='flat'){
+      if(state.firstToTen==='A' && p==='B'){ finishGame('A',false); return; }
+      state.current=p==='A'?'B':'A';
+    } else if(!repeat){
+      state.current=p==='A'?'B':'A';
+    }
+    renderScore();
+  }
+  function throwPack(){
+    if(autoTimer) { clearTimeout(autoTimer); autoTimer=null; }
+    if(state.throwing||state.finished)return;
+    state.throwing=true; throwBtn.disabled=true;
+    // Jeder Wurf startet exakt in der Reset-Initiallage.
+    setInitial();
+    const landing=makeLanding();
+    const bounds=safeBounds(landing);
+    const startX=INITIAL.x, startY=INITIAL.y;
+    const targetX=lerp(bounds.minX,bounds.maxX,Math.random());
+    const targetY=lerp(bounds.minY,bounds.maxY,Math.random());
+    const heading=Math.atan2(targetY-startY,targetX-startX)*180/Math.PI;
+    const finalHeading=heading + (Math.random()*20-10);
+    const turns=2+Math.floor(Math.random()*2); // nur ganze Umdrehungen
+    const dir=Math.random()<.5?-1:1;
+    // Endorientierung ist exakt eine stabile Lage + ganze Umdrehungen.
+    const endRx=landing.rx+dir*turns*360;
+    const endRy=landing.ry+dir*turns*360;
+    const endRz=finalHeading+dir*turns*360;
+    const duration=1550+Math.random()*250, start=performance.now(), jump=190+Math.random()*55;
+
+    function frame(now){
+      const t=Math.min(1,(now-start)/duration), e=easeInOut(t);
+      let x=lerp(startX,targetX,e), y=lerp(startY,targetY,e);
+      let z=lerp(INITIAL.z,landing.restZ,e)+jump*Math.sin(Math.PI*e);
+      let rx=lerp(INITIAL.rx,endRx,e), ry=lerp(INITIAL.ry,endRy,e), rz=lerp(INITIAL.rz,endRz,e);
+      z=Math.max(z,zNeeded(rx,ry,rz));
+      updatePack(x,y,z,rx,ry,rz);
+      updateShadow(x,y,.7+.4*e,.28+.25*e);
+      if(t<1){anim=requestAnimationFrame(frame);return;}
+      impact(landing,targetX,targetY,endRx,endRy,endRz);
+    }
+    anim=requestAnimationFrame(frame);
+  }
+  function impact(landing,x,y,rx,ry,rz){
+    const duration=380,start=performance.now();
+    function f(now){
+      const t=Math.min(1,(now-start)/duration), e=1-Math.pow(1-t,3);
+      const bounce=24*(1-e)*Math.sin(Math.PI*t);
+      updatePack(x,y,landing.restZ+bounce,rx,ry,rz);
+      updateShadow(x,y,1.0+0.12*e,.52-.15*e);
+      if(t<1){anim=requestAnimationFrame(f);return;}
+      state.throwing=false;
+      applyResult(landing);
+      if(!state.finished) {
+        throwBtn.disabled=false;
+        scheduleAutoThrow();
+      }
+    }
+    anim=requestAnimationFrame(f);
+  }
+
+  throwBtn.addEventListener('click',e=>{e.stopPropagation(); if(autoTimer){clearTimeout(autoTimer);autoTimer=null;} throwPack()});
+  resetBtn.addEventListener('click',e=>{e.stopPropagation();resetGame()});
+  autoBtn.addEventListener('click',e=>{
+    e.stopPropagation();
+    autoModeIndex = (autoModeIndex + 1) % autoModes.length;
+    autoBtn.innerHTML = '<span>Auto</span><br><span>' + autoModes[autoModeIndex] + '</span>';
+    scheduleAutoThrow();
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.code==='Space'){e.preventDefault(); if(autoTimer){clearTimeout(autoTimer);autoTimer=null;} throwPack()}
+    if(e.code==='Escape' && !state.throwing) resetGame();
+  });
+
+  // Ziehen dreht nur die Szene; UI bleibt in einer eigenen Ebene und blockiert nicht.
+  scene.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    drag={x:e.clientX,y:e.clientY,rx:sceneRotX,ry:sceneRotY};
+    scene.classList.add('dragging'); scene.setPointerCapture?.(e.pointerId);
+  });
+  scene.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+    sceneRotY=drag.ry+dx*.18; sceneRotX=Math.max(-12,Math.min(12,drag.rx-dy*.08));
+    world.style.transform=`translate(-50%,-50%) rotateX(${62+sceneRotX}deg) rotateZ(${sceneRotY}deg) translateZ(-80px)`;
+  });
+  scene.addEventListener('pointerup',()=>{drag=null;scene.classList.remove('dragging')});
+  scene.addEventListener('pointercancel',()=>{drag=null;scene.classList.remove('dragging')});
+  scene.addEventListener('dblclick',e=>{
+    e.preventDefault();
+    drag=null;
+    scene.classList.remove('dragging');
+    sceneRotX=0;
+    sceneRotY=0;
+    world.style.transform='translate(-50%,-50%) rotateX(62deg) translateZ(-80px)';
+  });
+
+  resetGame();
+})();
+</script>
+</body>
+</html>
